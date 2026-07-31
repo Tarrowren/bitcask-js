@@ -1,0 +1,65 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "watch",
+      "dependsOn": ["tsc-watch", "tsdown-watch"],
+      "presentation": {
+        "reveal": "never"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "tsc-watch",
+      "type": "shell",
+      "command": "npx",
+      "args": ["tsc", "-b", "-w"],
+      "group": "build",
+      "problemMatcher": ["$tsc-watch"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      }
+    },
+    {
+      "label": "tsdown-watch",
+      "type": "shell",
+      "command": "npx",
+      "args": ["tsdown", "--watch"],
+      "group": "build",
+      "problemMatcher": [
+        {
+          "owner": "tsdown",
+          "source": "tsdown",
+          "fileLocation": ["relative", "${cwd}"],
+          "pattern": [
+            {
+              "regexp": "^noop$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "severity": 4,
+              "message": 5
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": {
+              "regexp": "^ℹ"
+            },
+            "endsPattern": {
+              "regexp": "^✔"
+            }
+          }
+        }
+      ],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      }
+    }
+  ]
+}

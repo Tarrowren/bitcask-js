@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "node_modules/.tsc-temp",
+    "emitDeclarationOnly": true,
+    "composite": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "target": "esnext",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023"],
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "isolatedDeclarations": true,
+    "esModuleInterop": true,
+    "verbatimModuleSyntax": true,
+    "sourceMap": true,
+    "declarationMap": true,
+    "skipLibCheck": true
+  }
+}

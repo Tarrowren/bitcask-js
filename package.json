@@ -1,0 +1,51 @@
+{
+  "name": "bitcask",
+  "version": "0.0.1",
+  "description": "A k/v storage made in js",
+  "type": "module",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "typecheck": "tsc -b",
+    "test": "vitest --run",
+    "build": "tsdown"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tarrowren/bitcask-js.git"
+  },
+  "keywords": [
+    "bitcask",
+    "database",
+    "db"
+  ],
+  "author": "Tarrowren",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Tarrowren/bitcask-js/issues"
+  },
+  "homepage": "https://github.com/Tarrowren/bitcask-js#readme",
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@typia/unplugin": "^12.1.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "memfs": "^4.64.0",
+    "tsdown": "^0.22.14",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "typia": "^12.1.1"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  }
+}
