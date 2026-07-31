@@ -38,13 +38,13 @@
   "dependencies": {
     "typia": "^12.1.1"
   },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.cts",
+  "main": "./lib/index.cjs",
+  "module": "./lib/index.mjs",
+  "types": "./lib/index.d.cts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": "./lib/index.mjs",
+      "require": "./lib/index.cjs"
     },
     "./package.json": "./package.json"
   }

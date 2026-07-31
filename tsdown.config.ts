@@ -5,6 +5,7 @@ export default defineConfig((inlineConfig, _context) => {
   const production = !inlineConfig.watch;
 
   return {
+    outDir: "lib",
     exports: true,
     platform: "node",
     target: "node20",
