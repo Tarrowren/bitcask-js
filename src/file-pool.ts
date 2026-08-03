@@ -119,17 +119,17 @@ export class BitcaskFilePool extends EventEmitter<BitcaskFilePoolEvent> {
     });
   }
 
-  read_stream(
+  read_stream<T>(
     file_id: number,
     hint: boolean,
-    consum: ConsumReadableStream,
-  ): Promise<void> {
+    consum: ConsumReadableStream<T>,
+  ): Promise<T> {
     if (this._status === Status.DESTROY) {
       return Promise.reject(new Error(message));
     }
 
     this._status = Status.NORMAL;
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       this._read_queue.push({
         type: ReadRequestType.STREAM,
         file_id,

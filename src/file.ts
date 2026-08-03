@@ -274,17 +274,17 @@ interface _StreamRequest {
   type: ReadRequestType.STREAM;
   readonly file_id: number;
   readonly hint: boolean;
-  consum: ConsumReadableStream;
-  resolve: () => void;
+  consum: ConsumReadableStream<any>;
+  resolve: (result: any) => void;
   reject: (reason: unknown) => void;
 }
 
 export type ReadResponse = Buffer;
-export type ConsumReadableStream = (
+export type ConsumReadableStream<T = void> = (
   file_id: number,
   hint: boolean,
   stream: Readable,
-) => Promise<void>;
+) => Promise<T>;
 
 export class BitcaskWriter extends BitcaskFile {
   private readonly _write_queue = new Queue<WriteRequest>();
