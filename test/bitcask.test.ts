@@ -39,9 +39,9 @@ it("open", async () => {
   await expect(db.get("1")).rejects.toThrow("closed");
   await expect(db.put("1", Buffer.from("hello"))).rejects.toThrow("closed");
   await expect(db.delete("1")).rejects.toThrow("closed");
-  await expect(db.keys()).rejects.toThrow("closed");
-  await expect(db.values()).rejects.toThrow("closed");
-  await expect(db.entries()).rejects.toThrow("closed");
+  await expect(db.keys().next()).rejects.toThrow("closed");
+  await expect(db.values().next()).rejects.toThrow("closed");
+  await expect(db.entries().next()).rejects.toThrow("closed");
   await expect(db.merge()).rejects.toThrow("closed");
 });
 
@@ -122,28 +122,33 @@ it("fsync_failed", async () => {
 it("dispose", async () => {
   vol.fromJSON({ "current.txt": "" }, db_path);
 
-  const db = new Bitcask(db_path);
+  const _close_cb = vi.fn();
+  const db = new Bitcask(db_path).on("close", _close_cb);
 
   db.put("1", Buffer.from("hello"));
   db.put("2", Buffer.from("world"));
 
   await vi.runAllTimersAsync();
 
-  const _keys = db.keys();
-  const _values = db.values();
-  const _entries = db.entries();
+  const keys = db.keys();
+  const values = db.values();
+  const entries = db.entries();
+
+  keys.next();
+  values.next();
+  entries.next();
 
   await vi.runAllTimersAsync();
 
-  const keys = await _keys;
-  const values = await _values;
-  const entries = await _entries;
-
   db.dispose();
 
-  expect(() => keys.next()).toThrow("closed");
+  await expect(keys.next()).rejects.toThrow("closed");
   await expect(values.next()).rejects.toThrow("closed");
   await expect(entries.next()).rejects.toThrow("closed");
+
+  await vi.runAllTimersAsync();
+
+  expect(_close_cb).toHaveBeenCalledOnce();
 });
 
 it("load", async () => {
@@ -162,9 +167,7 @@ it("load", async () => {
   const db2 = new Bitcask(db_path);
   await vi.runAllTimersAsync();
 
-  const keys = expect(db2.keys().then((it) => [...it])).resolves.toStrictEqual([
-    "2",
-  ]);
+  const keys = expect(iter(db2.keys())).resolves.toStrictEqual(["2"]);
   await vi.runAllTimersAsync();
   await keys;
 });
@@ -196,33 +199,19 @@ it("get_put_delete_iterator", async () => {
   await vi.runAllTimersAsync();
   await get2;
 
-  const keys = expect(db.keys().then((it) => [...it])).resolves.toStrictEqual([
-    "1",
-  ]);
+  const keys = expect(iter(db.keys())).resolves.toStrictEqual(["1"]);
   await vi.runAllTimersAsync();
   await keys;
 
-  const values = expect(
-    db.values().then(async (it) => {
-      const bufs: Buffer[] = [];
-      for await (const buf of it) {
-        bufs.push(buf);
-      }
-      return bufs;
-    }),
-  ).resolves.toStrictEqual([Buffer.from("tarrow")]);
+  const values = expect(iter(db.values())).resolves.toStrictEqual([
+    Buffer.from("tarrow"),
+  ]);
   await vi.runAllTimersAsync();
   await values;
 
-  const entries = expect(
-    db.entries().then(async (it) => {
-      const kvs: [string, Buffer][] = [];
-      for await (const kv of it) {
-        kvs.push(kv);
-      }
-      return kvs;
-    }),
-  ).resolves.toStrictEqual([["1", Buffer.from("tarrow")]]);
+  const entries = expect(iter(db.entries())).resolves.toStrictEqual([
+    ["1", Buffer.from("tarrow")],
+  ]);
   await vi.runAllTimersAsync();
   await entries;
 
@@ -305,3 +294,11 @@ it("merge", async () => {
     expect(manifest.version).toBe(4);
   }
 });
+
+async function iter<T>(it: AsyncGenerator<T>): Promise<T[]> {
+  const data: T[] = [];
+  for await (const c of it) {
+    data.push(c);
+  }
+  return data;
+}

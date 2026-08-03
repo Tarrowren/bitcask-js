@@ -148,37 +148,96 @@ export class Bitcask extends EventEmitter<BitcaskEvent> {
     });
   }
 
-  keys(): Promise<Generator<string>> {
+  async *keys(): AsyncGenerator<string> {
     if (this._status === Status.DESTROY) {
-      return Promise.reject(new Error(message));
+      throw new Error(message);
     }
 
-    return new Promise<Generator<string>>((resolve, reject) => {
-      this._queue.push({ type: BitcaskRequestType.KEYS, resolve, reject });
+    const { key_dir } = await new Promise<_IteratorCtx>((resolve, reject) => {
+      this._queue.push({ type: BitcaskRequestType.ITER, resolve, reject });
       this.emit(TICK);
     });
+
+    this._active++;
+    try {
+      for (const key of key_dir.keys()) {
+        // @ts-ignore
+        if (this._status === Status.DESTROY) {
+          throw new Error(message);
+        }
+
+        yield key;
+      }
+    } finally {
+      this._active--;
+      this.emit(TICK);
+    }
   }
 
-  values(): Promise<AsyncGenerator<Buffer>> {
+  async *values(): AsyncGenerator<Buffer> {
     if (this._status === Status.DESTROY) {
-      return Promise.reject(new Error(message));
+      throw new Error(message);
     }
 
-    return new Promise<AsyncGenerator<Buffer>>((resolve, reject) => {
-      this._queue.push({ type: BitcaskRequestType.VALUES, resolve, reject });
+    const { file_pool, key_dir } = await new Promise<_IteratorCtx>(
+      (resolve, reject) => {
+        this._queue.push({ type: BitcaskRequestType.ITER, resolve, reject });
+        this.emit(TICK);
+      },
+    );
+
+    this._active++;
+    try {
+      for (const dir of key_dir.values()) {
+        // @ts-ignore
+        if (this._status === Status.DESTROY) {
+          throw new Error(message);
+        }
+
+        const { file_id, record_pos, record_sz } = dir_read(dir);
+        const record = await file_pool.read(file_id, record_pos, record_sz);
+        const value = record_read(record)?.value;
+        if (value) {
+          yield value;
+        }
+      }
+    } finally {
+      this._active--;
       this.emit(TICK);
-    });
+    }
   }
 
-  entries(): Promise<AsyncGenerator<[string, Buffer]>> {
+  async *entries(): AsyncGenerator<[string, Buffer]> {
     if (this._status === Status.DESTROY) {
-      return Promise.reject(new Error(message));
+      throw new Error(message);
     }
 
-    return new Promise<AsyncGenerator<[string, Buffer]>>((resolve, reject) => {
-      this._queue.push({ type: BitcaskRequestType.ENTRIES, resolve, reject });
+    const { file_pool, key_dir } = await new Promise<_IteratorCtx>(
+      (resolve, reject) => {
+        this._queue.push({ type: BitcaskRequestType.ITER, resolve, reject });
+        this.emit(TICK);
+      },
+    );
+
+    this._active++;
+    try {
+      for (const [key, dir] of key_dir.entries()) {
+        // @ts-ignore
+        if (this._status === Status.DESTROY) {
+          throw new Error(message);
+        }
+
+        const { file_id, record_pos, record_sz } = dir_read(dir);
+        const record = await file_pool.read(file_id, record_pos, record_sz);
+        const value = record_read(record)?.value;
+        if (value) {
+          yield [key, value];
+        }
+      }
+    } finally {
+      this._active--;
       this.emit(TICK);
-    });
+    }
   }
 
   merge(): Promise<void> {
@@ -356,23 +415,8 @@ export class Bitcask extends EventEmitter<BitcaskEvent> {
         return;
       }
 
-      case BitcaskRequestType.KEYS: {
-        this._active++;
-        request.resolve(this._keys(key_dir));
-
-        return;
-      }
-
-      case BitcaskRequestType.VALUES: {
-        this._active++;
-        request.resolve(this._values(file_pool, key_dir));
-
-        return;
-      }
-
-      case BitcaskRequestType.ENTRIES: {
-        this._active++;
-        request.resolve(this._entries(file_pool, key_dir));
+      case BitcaskRequestType.ITER: {
+        request.resolve({ file_pool, key_dir });
 
         return;
       }
@@ -462,67 +506,6 @@ export class Bitcask extends EventEmitter<BitcaskEvent> {
             .catch(reject);
         }
       });
-  }
-
-  private *_keys(key_dir: BitcaskKeyDir): Generator<string> {
-    try {
-      for (const key of key_dir.keys()) {
-        if (this._status === Status.DESTROY) {
-          throw new Error(message);
-        }
-
-        yield key;
-      }
-    } finally {
-      this._active--;
-      this.emit(TICK);
-    }
-  }
-
-  private async *_values(
-    file_pool: BitcaskFilePool,
-    key_dir: BitcaskKeyDir,
-  ): AsyncGenerator<Buffer> {
-    try {
-      for (const dir of key_dir.values()) {
-        if (this._status === Status.DESTROY) {
-          throw new Error(message);
-        }
-
-        const { file_id, record_pos, record_sz } = dir_read(dir);
-        const record = await file_pool.read(file_id, record_pos, record_sz);
-        const value = record_read(record)?.value;
-        if (value) {
-          yield value;
-        }
-      }
-    } finally {
-      this._active--;
-      this.emit(TICK);
-    }
-  }
-
-  private async *_entries(
-    file_pool: BitcaskFilePool,
-    key_dir: BitcaskKeyDir,
-  ): AsyncGenerator<[string, Buffer]> {
-    try {
-      for (const [key, dir] of key_dir.entries()) {
-        if (this._status === Status.DESTROY) {
-          throw new Error(message);
-        }
-
-        const { file_id, record_pos, record_sz } = dir_read(dir);
-        const record = await file_pool.read(file_id, record_pos, record_sz);
-        const value = record_read(record)?.value;
-        if (value) {
-          yield [key, value];
-        }
-      }
-    } finally {
-      this._active--;
-      this.emit(TICK);
-    }
   }
 
   private async _merge(
@@ -615,9 +598,7 @@ enum BitcaskRequestType {
   GET,
   PUT,
   DEL,
-  KEYS,
-  VALUES,
-  ENTRIES,
+  ITER,
   MERGE,
 }
 
@@ -625,9 +606,7 @@ type BitcaskRequest =
   | BitcaskGetRequest
   | BitcaskPutRequest
   | BitcaskDelRequest
-  | BitcaskKeysRequest
-  | BitcaskValuesRequest
-  | BitcaskEntriesRequest
+  | BitcaskIterateRequest
   | BitcaskMergeRequest;
 
 interface BitcaskGetRequest {
@@ -652,21 +631,9 @@ interface BitcaskDelRequest {
   reject: (reason: unknown) => void;
 }
 
-interface BitcaskKeysRequest {
-  type: BitcaskRequestType.KEYS;
-  resolve: (gen: Generator<string>) => void;
-  reject: (reason: unknown) => void;
-}
-
-interface BitcaskValuesRequest {
-  type: BitcaskRequestType.VALUES;
-  resolve: (gen: AsyncGenerator<Buffer>) => void;
-  reject: (reason: unknown) => void;
-}
-
-interface BitcaskEntriesRequest {
-  type: BitcaskRequestType.ENTRIES;
-  resolve: (gen: AsyncGenerator<[string, Buffer]>) => void;
+interface BitcaskIterateRequest {
+  type: BitcaskRequestType.ITER;
+  resolve: (ctx: _IteratorCtx) => void;
   reject: (reason: unknown) => void;
 }
 
@@ -681,4 +648,9 @@ interface BitcaskReplaceRequest {
   readonly new_files: ReadonlyArray<string>;
   resolve: () => void;
   reject: (reason: unknown) => void;
+}
+
+interface _IteratorCtx {
+  readonly key_dir: BitcaskKeyDir;
+  readonly file_pool: BitcaskFilePool;
 }
