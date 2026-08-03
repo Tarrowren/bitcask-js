@@ -1,6 +1,6 @@
 {
   "name": "bitcask",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A k/v storage made in js",
   "type": "module",
   "files": [
