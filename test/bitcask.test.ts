@@ -8,6 +8,8 @@ vi.mock("node:fs", () => fs);
 vi.mock("node:fs/promises", () => fs.promises);
 const _get_file_pool_opts = vi.spyOn(m, "get_file_pool_opts");
 const _fsync = vi.spyOn(fs, "fsync");
+const _readFile = vi.spyOn(fs.promises, "readFile");
+const _writeFile = vi.spyOn(fs.promises, "writeFile");
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -22,19 +24,33 @@ const db_path = "/";
 
 it("open", async () => {
   vol.fromJSON({ "current.txt": "" }, db_path);
+  _readFile.mockImplementation(async (id, options) => {
+    await new Promise(setImmediate);
+    if ((options as any).signal?.aborted) {
+      AbortSignal.abort().throwIfAborted();
+    }
+    return await fs.promises.readFile(id, options);
+  });
+  _writeFile.mockImplementation(async (id, data, options) => {
+    await new Promise(setImmediate);
+    if ((options as any).signal?.aborted) {
+      AbortSignal.abort().throwIfAborted();
+    }
+    await fs.promises.writeFile(id, data, options);
+  });
 
   const _close_cb = vi.fn();
   const _error_cb = vi.fn();
   const db = new Bitcask(db_path).on("close", _close_cb).on("error", _error_cb);
-
-  await vi.advanceTimersToNextTimerAsync();
-
   db.dispose();
 
-  await vi.advanceTimersToNextTimerAsync();
+  await vi.runAllTimersAsync();
 
   expect(_close_cb).toHaveBeenCalledOnce();
-  expect(_error_cb).not.toHaveBeenCalled();
+  expect(_error_cb).toHaveBeenCalledOnce();
+  expect(_error_cb).toHaveBeenCalledWith(
+    expect.objectContaining({ message: "failed to open database." }),
+  );
 
   await expect(db.get("1")).rejects.toThrow("closed");
   await expect(db.put("1", Buffer.from("hello"))).rejects.toThrow("closed");

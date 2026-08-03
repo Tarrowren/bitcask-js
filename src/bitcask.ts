@@ -288,7 +288,10 @@ export class Bitcask extends EventEmitter<BitcaskEvent> {
       this.emit("error", new Error("failed to open database.", { cause: err }));
       this._reject(err);
 
-      // do not trigger "tick" to avoid infinite loop
+      // do not trigger "tick" in normal status to avoid infinite loop
+      if (this._status === Status.DESTROY) {
+        this.emit(TICK);
+      }
     }
   }
 
