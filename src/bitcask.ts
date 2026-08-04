@@ -57,6 +57,7 @@ export class Bitcask extends EventEmitter<BitcaskEvent> {
   private _merging = false;
 
   private readonly _queue = new Queue<BitcaskRequest>();
+  private readonly _dispose_queue = new Queue<Function>();
   private _replace_manifest_request: BitcaskReplaceRequest | null | undefined;
 
   constructor(
@@ -96,6 +97,11 @@ export class Bitcask extends EventEmitter<BitcaskEvent> {
                   this._close();
                 }
               } else {
+                let callback: Function | undefined;
+                while ((callback = this._dispose_queue.shift())) {
+                  callback();
+                }
+
                 if (!this._closed) {
                   this.emit("close");
                   this._closed = true;
@@ -251,10 +257,14 @@ export class Bitcask extends EventEmitter<BitcaskEvent> {
     });
   }
 
-  dispose(): void {
+  dispose(): Promise<void> {
     this._status = Status.DESTROY;
     this._controller.abort(new Error(message));
-    this.emit(TICK);
+
+    return new Promise<void>((resolve) => {
+      this._dispose_queue.push(resolve);
+      this.emit(TICK);
+    });
   }
 
   private async _open(): Promise<void> {

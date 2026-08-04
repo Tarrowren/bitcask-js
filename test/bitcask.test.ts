@@ -156,7 +156,7 @@ it("dispose", async () => {
 
   await vi.runAllTimersAsync();
 
-  db.dispose();
+  const _dispose = db.dispose();
 
   await expect(keys.next()).rejects.toThrow("closed");
   await expect(values.next()).rejects.toThrow("closed");
@@ -165,6 +165,14 @@ it("dispose", async () => {
   await vi.runAllTimersAsync();
 
   expect(_close_cb).toHaveBeenCalledOnce();
+  await expect(_dispose).resolves.toBeUndefined();
+
+  const _dispose2 = db.dispose();
+
+  await vi.runAllTimersAsync();
+
+  expect(_close_cb).toHaveBeenCalledOnce();
+  await expect(_dispose2).resolves.toBeUndefined();
 });
 
 it("load", async () => {
